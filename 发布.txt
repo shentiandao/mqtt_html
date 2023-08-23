@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <title>MQTT Web Client</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" charset="utf-8">
+    <!-- <script src="https://raw.githubusercontent.com/eclipse/paho.mqtt.javascript/master/src/paho-mqtt.js"></script> -->
+    <script src="js/paho-mqtt.js"></script>
+</head>
+<body>
+    <h1>MQTT Web Client</h1>
+    <label for="serverInput">Server:</label>
+    <input type="text" id="serverInput" value="ws://broker.emqx.io:8083/mqtt" />
+    <button onclick="connect()">连接服务器</button>
+    <label for="topicInput">Topic:</label>
+    <input type="text" id="topicInput" placeholder="发布主题" />
+    <label for="messageInput">Message:</label>
+    <input type="text" id="messageInput" placeholder="发布消息" />
+    <button onclick="publish()">发布</button>
+
+    <div id="log"></div>
+
+    <script>
+        // MQTT客户端类
+        class MQTTClient {
+            constructor(serverUrl) {
+                this.mqttClient = new Paho.MQTT.Client(serverUrl, 'web_client');
+                this.mqttClient.onConnectionLost = this.onConnectionLost.bind(this);
+                this.mqttClient.onMessageArrived = this.onMessageArrived.bind(this);
+            }
+
+            connect() {
+                return new Promise((resolve, reject) => {
+                    this.mqttClient.connect({
+                        onSuccess: () => {
+                            console.log('成功连接到MQTT服务器');
+                            //在成功连接到MQTT服务器时被调用，用于显示连接成功的消息。
+                            resolve();
+                        },
+                        onFailure: (err) => {
+                            console.error('连接失败:', err);
+                            reject(err);
+                        }
+                    });
+                });
+            }
+
+            onConnectionLost(response) {
+                if (response.errorCode !== 0) {
+                    console.error('连接丢失:', response.errorMessage);
+                }
+            }
+
+            onMessageArrived(message) {
+                console.log('Received message:', message.payloadString);
+            }
+
+            publish(topic, message) {
+                let mqttMessage = new Paho.MQTT.Message(message);
+                mqttMessage.destinationName = topic;
+
+                this.mqttClient.send(mqttMessage);
+                console.log('Published message:', message);
+            }
+        }
+
+        // 创建MQTT客户端实例
+        let mqttClient;
+
+        // 连接到MQTT代理服务器
+        function connect() {
+            const serverUrl = document.getElementById('serverInput').value;
+            mqttClient = new MQTTClient(serverUrl);
+
+            mqttClient.connect()
+                .then(() => {
+                    console.log('Connected');
+                    //在成功连接到MQTT服务器后的.then()回调函数中被调用，同样用于显示连接成功的消息。 
+                })
+                .catch((err) => {
+                    console.error('Connection failed:', err);
+                });
+        }
+
+        // 发布消息
+        function publish() {
+            const topic = document.getElementById('topicInput').value;
+            const message = document.getElementById('messageInput').value;
+
+            if (mqttClient) {
+                mqttClient.publish(topic, message);
+            } else {
+                console.error('并未连接');
+            }
+        }
+    </script>
+</body>
+</html>
